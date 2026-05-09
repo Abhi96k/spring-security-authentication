@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -47,5 +48,19 @@ public class UserService implements UserDetailsService {
         return modelMapper.map(savedUser, UserDto.class);
     }
 
+    public User getOrCreateOAuthUser(String email, String name) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("OAuth user email is required");
+        }
+
+        return userRepository.findByEmail(email)
+                .orElseGet(() -> {
+                    User user = new User();
+                    user.setEmail(email);
+                    user.setName(name != null ? name : email);
+                    user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                    return userRepository.save(user);
+                });
+    }
 
 }

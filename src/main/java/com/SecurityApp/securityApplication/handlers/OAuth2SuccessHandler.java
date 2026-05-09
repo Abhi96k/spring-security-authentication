@@ -1,6 +1,10 @@
 package com.SecurityApp.securityApplication.handlers;
 
+import com.SecurityApp.securityApplication.entities.User;
+import com.SecurityApp.securityApplication.services.JWTService;
+import com.SecurityApp.securityApplication.services.UserService;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -21,6 +25,9 @@ import java.io.IOException;
 @Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
+    private final JWTService jwtService;
+    private final UserService userService;
+
     @Override
     public void onAuthenticationSuccess(
             HttpServletRequest request,
@@ -28,19 +35,37 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             Authentication authentication
     ) throws IOException, ServletException {
 
-        OAuth2AuthenticationToken token =
-                (OAuth2AuthenticationToken) authentication;
+        OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
+        OAuth2User oAuth2User = token.getPrincipal();
 
-        OAuth2User user = token.getPrincipal();
+        String githubUsername = oAuth2User.getAttribute("login");
+        String name = oAuth2User.getAttribute("name");
+        String email = oAuth2User.getAttribute("email");
 
-        String githubUsername = user.getAttribute("login");
-        String name = user.getAttribute("name");
-        String email = user.getAttribute("email");
+        String fallbackId = githubUsername != null ? githubUsername : oAuth2User.getName();
+        String resolvedEmail = email != null
+                ? email
+                : (fallbackId != null ? fallbackId + "@github.local" : null);
+        String resolvedName = name != null
+                ? name
+                : (githubUsername != null ? githubUsername : "GitHub User");
 
-        System.out.println("GitHub Username: " + githubUsername);
-        System.out.println("Name: " + name);
-        System.out.println("Email: " + email);
+        User user = userService.getOrCreateOAuthUser(resolvedEmail, resolvedName);
 
-        response.sendRedirect("/home");
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        Cookie cookie = new Cookie("refresh_token", refreshToken);
+        cookie.setHttpOnly(true);
+        cookie.setPath("/");
+        response.addCookie(cookie);
+        response.setHeader("Authorization", "Bearer " + accessToken);
+
+        log.info("GitHub Username: {}", githubUsername);
+        log.info("Name: {}", resolvedName);
+        log.info("Email: {}", resolvedEmail);
+
+        String frontendUrl = "https://localhost:8080/home.html?token=" + accessToken;
+        getRedirectStrategy().sendRedirect(request, response, frontendUrl);
     }
 }

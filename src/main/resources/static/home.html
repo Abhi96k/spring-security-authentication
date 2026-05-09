@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Login Success</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin-top: 100px;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            width: 500px;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px gray;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background: darkgreen;
+        }
+
+        pre {
+            text-align: left;
+            background: #eee;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>OAuth Login Successful ✅</h1>
+    <p>You are logged in using GitHub OAuth.</p>
+
+    <h3>Access Token:</h3>
+    <pre id="tokenDisplay"></pre>
+
+    <button onclick="callProtectedApi()">Call Protected API</button>
+
+    <h3>API Response:</h3>
+    <pre id="apiResponse"></pre>
+</div>
+
+<script>
+    // Extract token from URL
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    if (token) {
+        document.getElementById("tokenDisplay").textContent = token;
+
+        // Store token in localStorage (demo purpose)
+        localStorage.setItem("accessToken", token);
+    } else {
+        document.getElementById("tokenDisplay").textContent =
+            "No token found in URL";
+    }
+
+    async function callProtectedApi() {
+        const accessToken = localStorage.getItem("accessToken");
+
+        try {
+            const response = await fetch("http://localhost:8080/api/profile", {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + accessToken
+                }
+            });
+
+            const data = await response.text();
+
+            document.getElementById("apiResponse").textContent = data;
+        } catch (error) {
+            document.getElementById("apiResponse").textContent =
+                "Error calling API: " + error;
+        }
+    }
+</script>
+
+</body>
+</html>
