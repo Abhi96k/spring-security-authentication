@@ -65,7 +65,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         log.info("Name: {}", resolvedName);
         log.info("Email: {}", resolvedEmail);
 
-        String frontendUrl = "https://localhost:8080/home.html?token=" + accessToken;
+        String frontendUrl = "http://localhost:8080/home.html?token=" + accessToken;
         getRedirectStrategy().sendRedirect(request, response, frontendUrl);
     }
 }
