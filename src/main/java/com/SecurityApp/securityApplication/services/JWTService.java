@@ -24,7 +24,7 @@ public class JWTService {
         return Keys.hmacShaKeyFor(jwtSecretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateAceessTolken(User user) {
+    public String generateAccessToken(User user) {
         SecretKey key = genSecretKey();
         long now = System.currentTimeMillis();
 
@@ -39,7 +39,7 @@ public class JWTService {
                 .compact();
     }
 
-    public String generateRefresghToken(User user) {
+    public String generateRefreshToken(User user) {
         SecretKey key = genSecretKey();
         long now = System.currentTimeMillis();
 

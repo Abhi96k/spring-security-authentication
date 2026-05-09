@@ -1,7 +1,7 @@
 package com.SecurityApp.securityApplication.config;
 
 import com.SecurityApp.securityApplication.filters.JwtAuthFilter;
-import lombok.NoArgsConstructor;
+import com.SecurityApp.securityApplication.handlers.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,18 +12,16 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class WebSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-
-
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -60,7 +58,7 @@ public class WebSecurityConfig {
 
                 // GitHub OAuth Login
                 .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("/home", true)
+                        .successHandler(oAuth2SuccessHandler)
                         .failureUrl("/login?error=true")
                 );
 
@@ -73,10 +71,6 @@ public class WebSecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
 
     @Bean
     public AuthenticationManager authenticationManager(

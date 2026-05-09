@@ -31,7 +31,7 @@ class JWTServiceTest {
         user.setEmail("abhishek@example.com");
         user.setPassword("password");
 
-        String token = jwtService.generateAceessTolken(user);
+        String token = jwtService.generateAccessToken(user);
         log.info("Generated JWT for {}: {}...", user.getEmail(), token.substring(0, 20));
 
         Long extractedUserId = jwtService.getUserIdFromToken(token);
