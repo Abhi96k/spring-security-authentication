@@ -1,5 +1,6 @@
 package com.SecurityApp.securityApplication.entities;
 
+import com.SecurityApp.securityApplication.entities.enums.Permission;
 import com.SecurityApp.securityApplication.entities.enums.Role;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -10,8 +11,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Set;
 
 @Entity
@@ -36,15 +37,28 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Set<Role> roles;
 
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Enumerated(EnumType.STRING)
+    private Set<Permission> permissions;
+
     @Override
     public @NonNull Collection<? extends GrantedAuthority> getAuthorities() {
-        if (roles == null || roles.isEmpty()) {
-            return Collections.emptyList();
+        ArrayList<GrantedAuthority> authorities = new ArrayList<>();
+
+        if (roles != null) {
+            roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
+                    .forEach(authorities::add);
         }
 
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
-                .toList();
+        if (permissions != null) {
+            permissions.stream()
+                    .map(permission -> new SimpleGrantedAuthority(permission.name()))
+                    .forEach(authorities::add);
+        }
+
+        return authorities;
     }
 
     @Override
