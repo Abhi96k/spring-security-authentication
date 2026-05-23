@@ -9,9 +9,9 @@ import java.util.Date;
 @Entity
 @Getter
 @Setter
-@RequiredArgsConstructor
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Session {
 
     @Id
@@ -23,8 +23,9 @@ public class Session {
     @CreationTimestamp
     private Date creationDate;
 
+    private Date lastUsedAt;
+
     @ManyToOne
     private User user;
-
 
 }

@@ -6,6 +6,7 @@ import com.SecurityApp.securityApplication.repositories.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.Comparator;
 import java.util.List;
 
@@ -14,19 +15,45 @@ import java.util.List;
 public class SessionService {
 
     private final SessionRepository sessionRepository;
-    private final int MAX_SESSIONS_PER_USER = 5;
 
+    private static final int MAX_SESSIONS_PER_USER = 5;
 
-    public Void generateNewSession(User user, String refreshToken) {
-        List<Session> userSession = sessionRepository.findByUser(user);
-
-        if(userSession.size() == MAX_SESSIONS_PER_USER) {
-            userSession.sort(Comparator.comparing(Session::getCreationDate));
-
-            Session leastRecentlyUsedSession = userSession.getFirst();
-            sessionRepository.delete(leastRecentlyUsedSession);
+    public void generateNewSession(User user, String refreshToken) {
+        List<Session> userSessions = sessionRepository.findByUser(user);
+        if (userSessions.size() >= MAX_SESSIONS_PER_USER) {
+            userSessions.sort(Comparator.comparing(Session::getCreationDate));
+            Session oldestSession = userSessions.get(0);
+            sessionRepository.delete(oldestSession);
         }
 
+        Session newSession = Session.builder()
+                .user(user)
+                .refreshToken(refreshToken)
+                .build();
 
+        sessionRepository.save(newSession);
+    }
+
+    public boolean validateSession(String refreshToken) {
+        return sessionRepository
+                .findByRefreshToken(refreshToken)
+                .map(session -> {
+                    session.setLastUsedAt(new Date());
+                    sessionRepository.save(session);
+                    return true;
+                })
+                .orElse(false);
+
+    }
+
+    public void deleteSession(String refreshToken) {
+
+        sessionRepository.findByRefreshToken(refreshToken)
+                .ifPresent(sessionRepository::delete);
+    }
+
+    public List<Session> getUserSessions(User user) {
+
+        return sessionRepository.findByUser(user);
     }
 }

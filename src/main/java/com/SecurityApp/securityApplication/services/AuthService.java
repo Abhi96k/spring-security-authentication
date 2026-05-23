@@ -5,6 +5,7 @@ import com.SecurityApp.securityApplication.dto.LoginDto;
 import com.SecurityApp.securityApplication.dto.LoginResponseDto;
 import com.SecurityApp.securityApplication.entities.User;
 import lombok.RequiredArgsConstructor;
+import lombok.val;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,6 +18,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
     private final UserService userService;
+    private final SessionService sessionService;
 
 
     public LoginResponseDto login(LoginDto loginDto) {
@@ -32,6 +34,10 @@ public class AuthService {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
+        sessionService.generateNewSession(user, refreshToken);
+
+
+
         return new LoginResponseDto(user.getId(), accessToken, refreshToken);
 
 
@@ -40,6 +46,8 @@ public class AuthService {
     public LoginResponseDto refreshToken(String refreshToken) {
         // Extract userId from the refresh token
         Long userId = jwtService.getUserIdFromToken(refreshToken);
+
+        sessionService.validateSession(refreshToken);
 
         // Fetch user from database
         User user = userService.getUserById(userId);
