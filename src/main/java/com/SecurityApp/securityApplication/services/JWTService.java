@@ -5,11 +5,13 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class JWTService {
@@ -32,7 +34,14 @@ public class JWTService {
                 .subject(user.getUsername())
                 .claim("userId", user.getId())
                 .claim("email", user.getEmail())
-                .claim("roles", user.getAuthorities())
+                .claim(
+                        "roles",
+                        user.getAuthorities()
+                                .stream()
+                                .map(authority ->
+                                        authority.getAuthority())
+                                .toList()
+                )
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expirationTime))
                 .signWith(key)
@@ -70,6 +79,12 @@ public class JWTService {
     // Retrieve user email from token.
     public String getUserEmailFromToken(String token) {
         return getAllClaims(token).get("email", String.class);
+    }
+
+    // Retrieve roles from token.
+    public List<String> getRolesFromToken(String token) {
+        return getAllClaims(token)
+                .get("roles", List.class);
     }
 
 }

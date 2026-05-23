@@ -15,6 +15,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import static com.SecurityApp.securityApplication.entities.enums.Role.ADMIN;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -22,6 +24,13 @@ public class WebSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/auth/**",
+            "/api/auth/**",
+            "/oauth2/**",
+            "/login/**"
+    };
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -35,11 +44,10 @@ public class WebSecurityConfig {
                 // Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/auth/**",
-                                "/api/auth/**",
-                                "/oauth2/**",
-                                "/login/**"
-                        ).permitAll()
+                                PUBLIC_ENDPOINTS
+                        )
+                        .permitAll()
+                        .requestMatchers("/admin/**").hasRole(ADMIN.name())
                         .anyRequest().authenticated()
                 )
 

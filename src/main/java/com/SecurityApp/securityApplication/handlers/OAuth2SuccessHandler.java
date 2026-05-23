@@ -3,13 +3,13 @@ package com.SecurityApp.securityApplication.handlers;
 import com.SecurityApp.securityApplication.entities.User;
 import com.SecurityApp.securityApplication.services.JWTService;
 import com.SecurityApp.securityApplication.services.UserService;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -30,25 +30,30 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Override
     public void onAuthenticationSuccess(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            Authentication authentication
-    ) throws IOException, ServletException {
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull Authentication authentication
+    ) throws IOException {
 
         OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
         OAuth2User oAuth2User = token.getPrincipal();
 
-        String githubUsername = oAuth2User.getAttribute("login");
-        String name = oAuth2User.getAttribute("name");
-        String email = oAuth2User.getAttribute("email");
+        Object githubUsernameAttribute = oAuth2User.getAttribute("login");
+        String githubUsername = githubUsernameAttribute != null ? githubUsernameAttribute.toString() : null;
+        Object nameAttribute = oAuth2User.getAttribute("name");
+        String name = nameAttribute != null ? nameAttribute.toString() : null;
+        Object emailAttribute = oAuth2User.getAttribute("email");
+        String email = emailAttribute != null ? emailAttribute.toString() : null;
 
         String fallbackId = githubUsername != null ? githubUsername : oAuth2User.getName();
-        String resolvedEmail = email != null
-                ? email
-                : (fallbackId != null ? fallbackId + "@github.local" : null);
+        String resolvedEmail = email != null ? email : fallbackId + "@github.local";
         String resolvedName = name != null
                 ? name
                 : (githubUsername != null ? githubUsername : "GitHub User");
+
+        if (resolvedEmail == null || resolvedEmail.isBlank()) {
+            throw new IllegalArgumentException("OAuth user email is required");
+        }
 
         User user = userService.getOrCreateOAuthUser(resolvedEmail, resolvedName);
 

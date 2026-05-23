@@ -12,12 +12,14 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
@@ -86,11 +88,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // May throw ResourceNotFoundException
             User user = userService.getUserById(userId);
 
+            // we can extrat the roles from the user entity and set them in the authentication token
+            // already we have flow we are generating tokens with user roles, so we can extract the roles from the token and set them in the authentication token
+            List<String> roles =
+                    jwtService.getRolesFromToken(token);
+
+            List<SimpleGrantedAuthority> authorities =
+                    roles.stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .toList();
+
             SecurityContextHolder.getContext().setAuthentication(
                     new UsernamePasswordAuthenticationToken(
                             user,
                             null,
-                            user.getAuthorities()
+                            authorities
                     )
             );
 
@@ -108,3 +120,4 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
     }
 }
+
