@@ -6,6 +6,7 @@ import com.SecurityApp.securityApplication.dto.LoginResponseDto;
 import com.SecurityApp.securityApplication.entities.User;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,6 +22,7 @@ public class AuthService {
     private final SessionService sessionService;
 
 
+    @PreAuthorize("isAnonymous()")
     public LoginResponseDto login(LoginDto loginDto) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -43,6 +45,7 @@ public class AuthService {
 
     }
 
+    @PreAuthorize("isAuthenticated()")
     public LoginResponseDto refreshToken(String refreshToken) {
         // Extract userId from the refresh token
         Long userId = jwtService.getUserIdFromToken(refreshToken);

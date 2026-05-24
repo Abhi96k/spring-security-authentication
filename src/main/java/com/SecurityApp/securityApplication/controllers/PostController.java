@@ -3,6 +3,7 @@ package com.SecurityApp.securityApplication.controllers;
 import com.SecurityApp.securityApplication.dto.PostDTO;
 import com.SecurityApp.securityApplication.services.PostService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,16 +16,19 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('POST_VIEW')")
     public List<PostDTO> getAllPosts() {
         return postService.getAllPosts();
     }
 
     @GetMapping("/{postId}")
+    @PreAuthorize("hasAuthority('POST_VIEW')")
     public PostDTO getPostById(@PathVariable Long postId) {
         return postService.getPostById(postId);
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('POST_CREATE')")
     public PostDTO createNewPost(@RequestBody PostDTO inputPost) {
         return postService.createNewPost(inputPost);
     }

@@ -7,6 +7,7 @@ import com.SecurityApp.securityApplication.repositories.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,6 +22,7 @@ public class PostServiceImpl implements PostService {
     private final ModelMapper modelMapper;
 
     @Override
+    @PreAuthorize("hasAuthority('POST_VIEW')")
     public List<PostDTO> getAllPosts() {
         return postRepository
                 .findAll()
@@ -30,12 +32,14 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @PreAuthorize("hasAuthority('POST_CREATE')")
     public PostDTO createNewPost(PostDTO inputPost) {
         PostEntity postEntity = modelMapper.map(inputPost, PostEntity.class);
         return modelMapper.map(postRepository.save(postEntity), PostDTO.class);
     }
 
     @Override
+    @PreAuthorize("hasAuthority('POST_VIEW')")
     public PostDTO getPostById(Long postId) {
         PostEntity postEntity = postRepository
                 .findById(postId)

@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +26,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/singup")
+    @PreAuthorize("isAnonymous()")
     public ResponseEntity<UserDto> signUp(@RequestBody SignUpDto signUpDto) {
         UserDto userDto = userService.signUp(signUpDto);
         return ResponseEntity.ok(userDto);
@@ -33,6 +35,7 @@ public class AuthController {
 
 
     @PostMapping("/login")
+    @PreAuthorize("isAnonymous()")
     public ResponseEntity<LoginResponseDto> login(@RequestBody LoginDto loginDto,
                                         HttpServletResponse response ) {
         LoginResponseDto loginResponseDto = authService.login(loginDto);
@@ -46,6 +49,7 @@ public class AuthController {
 
 
     @PostMapping("/refresh")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LoginResponseDto> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = null;
         if (request.getCookies() != null) {
