@@ -4,7 +4,9 @@ import com.SecurityApp.securityApplication.entities.Session;
 import com.SecurityApp.securityApplication.entities.User;
 import com.SecurityApp.securityApplication.repositories.SessionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.Comparator;
@@ -18,6 +20,7 @@ public class SessionService {
 
     private static final int MAX_SESSIONS_PER_USER = 5;
 
+    @Transactional
     public void generateNewSession(User user, String refreshToken) {
         List<Session> userSessions = sessionRepository.findByUser(user);
         if (userSessions.size() >= MAX_SESSIONS_PER_USER) {
@@ -34,18 +37,25 @@ public class SessionService {
         sessionRepository.save(newSession);
     }
 
-    public boolean validateSession(String refreshToken) {
-        return sessionRepository
+    // Throws if the refresh token does not belong to an active session (e.g. logged out or evicted).
+    @Transactional
+    public Session validateSession(String refreshToken) {
+        Session session = sessionRepository
                 .findByRefreshToken(refreshToken)
-                .map(session -> {
-                    session.setLastUsedAt(new Date());
-                    sessionRepository.save(session);
-                    return true;
-                })
-                .orElse(false);
-
+                .orElseThrow(() -> new BadCredentialsException("Session expired or invalid, please login again"));
+        session.setLastUsedAt(new Date());
+        return sessionRepository.save(session);
     }
 
+    // Refresh token rotation: the old token stops working once a new one is issued.
+    @Transactional
+    public void rotateRefreshToken(Session session, String newRefreshToken) {
+        session.setRefreshToken(newRefreshToken);
+        session.setLastUsedAt(new Date());
+        sessionRepository.save(session);
+    }
+
+    @Transactional
     public void deleteSession(String refreshToken) {
 
         sessionRepository.findByRefreshToken(refreshToken)

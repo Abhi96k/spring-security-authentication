@@ -46,4 +46,13 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id " + postId));
         return modelMapper.map(postEntity, PostDTO.class);
     }
+
+    @Override
+    @PreAuthorize("hasAuthority('POST_DELETE')")
+    public void deletePost(Long postId) {
+        if (!postRepository.existsById(postId)) {
+            throw new ResourceNotFoundException("Post not found with id " + postId);
+        }
+        postRepository.deleteById(postId);
+    }
 }

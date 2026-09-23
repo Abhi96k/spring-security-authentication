@@ -9,9 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -46,22 +44,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         try {
-            Authentication existingAuthentication =
-                    SecurityContextHolder.getContext().getAuthentication();
-
-            // If user already authenticated, skip JWT validation
-            if (existingAuthentication != null
-                    && existingAuthentication.isAuthenticated()
-                    && !(existingAuthentication instanceof AnonymousAuthenticationToken)) {
-
-                filterChain.doFilter(request, response);
-                return;
-            }
-
             final String requestTokenHeader =
                     request.getHeader("Authorization");
 
-            // No token present
+            // No token present: keep whatever authentication (if any) is already in the context
             if (requestTokenHeader == null ||
                     !requestTokenHeader.startsWith("Bearer ")) {
 
@@ -85,13 +71,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // May throw ResourceNotFoundException
-            User user = userService.getUserById(userId);
+            // May throw UsernameNotFoundException.
+            // Uses the unsecured lookup: no principal is authenticated yet at this point.
+            User user = userService.findUserById(userId);
 
             // we can extrat the roles from the user entity and set them in the authentication token
             // already we have flow we are generating tokens with user roles, so we can extract the roles from the token and set them in the authentication token
             List<String> roles =
                     jwtService.getRolesFromToken(token);
+
+            if (roles == null) {
+                roles = List.of();
+            }
 
             List<SimpleGrantedAuthority> authorities =
                     roles.stream()
@@ -111,12 +102,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } catch (Exception ex) {
 
             // Forward exception to GlobalExceptionHandler
-            handlerExceptionResolver.resolveException(
+            if (handlerExceptionResolver.resolveException(
                     request,
                     response,
                     null,
                     ex
-            );
+            ) == null) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+            }
         }
     }
 }
