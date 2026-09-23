@@ -33,4 +33,10 @@ public class PostController {
         return postService.createNewPost(inputPost);
     }
 
+    @DeleteMapping("/{postId}")
+    @PreAuthorize("hasAuthority('POST_DELETE')")
+    public void deletePost(@PathVariable Long postId) {
+        postService.deletePost(postId);
+    }
+
 }

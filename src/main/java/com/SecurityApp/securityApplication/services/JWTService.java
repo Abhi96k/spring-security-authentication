@@ -12,6 +12,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class JWTService {
@@ -31,6 +32,7 @@ public class JWTService {
         long now = System.currentTimeMillis();
 
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(user.getUsername())
                 .claim("userId", user.getId())
                 .claim("email", user.getEmail())
@@ -53,10 +55,9 @@ public class JWTService {
         long now = System.currentTimeMillis();
 
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(user.getUsername())
                 .claim("userId", user.getId())
-                .claim("email", user.getEmail())
-                .claim("roles", user.getAuthorities())
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expirationTime * 2)) // Refresh token valid for twice the access token duration
                 .signWith(key)

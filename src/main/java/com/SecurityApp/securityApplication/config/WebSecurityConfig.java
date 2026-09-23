@@ -8,16 +8,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
@@ -34,7 +36,18 @@ public class WebSecurityConfig {
             "/auth/**",
             "/api/auth/**",
             "/oauth2/**",
-            "/login/**"
+            "/login/**",
+            "/error",
+            "/actuator/health"
+    };
+
+    // Static UI files
+    private static final String[] PUBLIC_UI = {
+            "/",
+            "/index.html",
+            "/css/**",
+            "/js/**",
+            "/favicon.ico"
     };
 
     @Bean
@@ -64,6 +77,18 @@ public class WebSecurityConfig {
                 )
 
                 /*
+                 Never persist the authenticated SecurityContext in the
+                 HTTP session: every request is authenticated by its JWT.
+                 Otherwise a JSESSIONID keeps the browser "logged in"
+                 after logout and isAnonymous() endpoints return 403.
+                */
+                .securityContext(context -> context
+                        .securityContextRepository(
+                                new RequestAttributeSecurityContextRepository()
+                        )
+                )
+
+                /*
                  Authorization Rules
                 */
                 .authorizeHttpRequests(auth -> auth
@@ -72,6 +97,9 @@ public class WebSecurityConfig {
                          Public APIs
                         */
                         .requestMatchers(PUBLIC_ENDPOINTS)
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.GET, PUBLIC_UI)
                         .permitAll()
 
                         /*
@@ -131,7 +159,18 @@ public class WebSecurityConfig {
 
                         .successHandler(oAuth2SuccessHandler)
 
-                        .failureUrl("/login?error=true")
+                        .failureUrl("/?error=oauth")
+                )
+
+                /*
+                 REST API: answer 401/403 with a status code instead of
+                 redirecting to a login page or triggering the browser's
+                 Basic-auth popup.
+                */
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(
+                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+                        )
                 );
 
         /*

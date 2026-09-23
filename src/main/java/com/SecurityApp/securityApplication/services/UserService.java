@@ -17,6 +17,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Set;
@@ -41,8 +43,37 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id " + userId));
     }
 
+    // Internal lookup without method security, used by the JWT filter and the refresh flow
+    // where no authenticated principal exists yet.
+    public @NonNull User findUserById(@NonNull Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id " + userId));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public @NonNull List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public @NonNull User updateRoles(@NonNull Long userId, @NonNull Set<Role> roles) {
+        if (roles.isEmpty()) {
+            throw new IllegalArgumentException("At least one role is required");
+        }
+        User user = findUserById(userId);
+        user.setRoles(new HashSet<>(roles));
+        return userRepository.save(user);
+    }
+
     @PreAuthorize("isAnonymous()")
     public @NonNull UserDto signUp(@NonNull SignUpDto signUpDto) {
+        if (signUpDto.getEmail() == null || signUpDto.getEmail().isBlank()
+                || signUpDto.getPassword() == null || signUpDto.getPassword().isBlank()) {
+            throw new IllegalArgumentException("Email and password are required");
+        }
+        if (signUpDto.getName() == null || signUpDto.getName().isBlank()) {
+            signUpDto.setName(signUpDto.getEmail());
+        }
         Optional<User> user = userRepository.findByEmail(signUpDto.getEmail());
         if (user.isPresent()) {
             throw new BadCredentialsException("User already exists " + signUpDto.getEmail());
@@ -69,7 +100,7 @@ public class UserService implements UserDetailsService {
     }
 
     private Set<Role> defaultRoles() {
-        return Set.of(Role.USER);
+        return new HashSet<>(Set.of(Role.USER));
     }
 
 }

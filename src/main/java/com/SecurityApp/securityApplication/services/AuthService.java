@@ -3,9 +3,9 @@ package com.SecurityApp.securityApplication.services;
 
 import com.SecurityApp.securityApplication.dto.LoginDto;
 import com.SecurityApp.securityApplication.dto.LoginResponseDto;
+import com.SecurityApp.securityApplication.entities.Session;
 import com.SecurityApp.securityApplication.entities.User;
 import lombok.RequiredArgsConstructor;
-import lombok.val;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -45,20 +45,29 @@ public class AuthService {
 
     }
 
-    @PreAuthorize("isAuthenticated()")
+    // No @PreAuthorize here: the access token has usually expired when a client refreshes,
+    // so the caller is anonymous. The refresh token itself is the credential.
     public LoginResponseDto refreshToken(String refreshToken) {
-        // Extract userId from the refresh token
+        // Extract userId from the refresh token (throws JwtException if invalid or expired)
         Long userId = jwtService.getUserIdFromToken(refreshToken);
 
-        sessionService.validateSession(refreshToken);
+        Session session = sessionService.validateSession(refreshToken);
 
         // Fetch user from database
-        User user = userService.getUserById(userId);
+        User user = userService.findUserById(userId);
 
         // Generate new tokens
         String newAccessToken = jwtService.generateAccessToken(user);
         String newRefreshToken = jwtService.generateRefreshToken(user);
 
+        sessionService.rotateRefreshToken(session, newRefreshToken);
+
         return new LoginResponseDto(user.getId(), newAccessToken, newRefreshToken);
+    }
+
+    public void logout(String refreshToken) {
+        if (refreshToken != null) {
+            sessionService.deleteSession(refreshToken);
+        }
     }
 }

@@ -2,15 +2,19 @@ package com.SecurityApp.securityApplication.handlers;
 
 import com.SecurityApp.securityApplication.entities.User;
 import com.SecurityApp.securityApplication.services.JWTService;
+import com.SecurityApp.securityApplication.services.SessionService;
 import com.SecurityApp.securityApplication.services.UserService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
@@ -27,6 +31,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final JWTService jwtService;
     private final UserService userService;
+    private final SessionService sessionService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationSuccess(
@@ -60,17 +68,25 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        Cookie cookie = new Cookie("refresh_token", refreshToken);
+        // Same session + cookie as the email/password login, so /auth/refresh and /auth/logout work for OAuth users too
+        sessionService.generateNewSession(user, refreshToken);
+
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
         response.addCookie(cookie);
-        response.setHeader("Authorization", "Bearer " + accessToken);
 
-        log.info("GitHub Username: {}", githubUsername);
-        log.info("Name: {}", resolvedName);
-        log.info("Email: {}", resolvedEmail);
+        // From here on the client authenticates with the JWT only. Drop the temporary HTTP session
+        // used during the OAuth2 handshake so it can't shadow the JWT's roles and permissions.
+        SecurityContextHolder.clearContext();
+        HttpSession httpSession = request.getSession(false);
+        if (httpSession != null) {
+            httpSession.invalidate();
+        }
 
-        String frontendUrl = "http://localhost:8080/home.html?token=" + accessToken;
-        getRedirectStrategy().sendRedirect(request, response, frontendUrl);
+        log.info("GitHub login: username={}, name={}, email={}", githubUsername, resolvedName, resolvedEmail);
+
+        // Token goes in the URL fragment so it is never sent to a server or written to access logs
+        getRedirectStrategy().sendRedirect(request, response, frontendUrl + "#token=" + accessToken);
     }
 }

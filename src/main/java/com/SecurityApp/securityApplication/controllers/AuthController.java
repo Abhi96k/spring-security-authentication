@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +26,8 @@ public class AuthController {
     private final UserService userService;
     private final AuthService authService;
 
-    @PostMapping("/singup")
+    // "/singup" kept for backward compatibility with existing clients
+    @PostMapping({"/signup", "/singup"})
     @PreAuthorize("isAnonymous()")
     public ResponseEntity<UserDto> signUp(@RequestBody SignUpDto signUpDto) {
         UserDto userDto = userService.signUp(signUpDto);
@@ -39,38 +41,48 @@ public class AuthController {
     public ResponseEntity<LoginResponseDto> login(@RequestBody LoginDto loginDto,
                                         HttpServletResponse response ) {
         LoginResponseDto loginResponseDto = authService.login(loginDto);
-        String refreshToken = loginResponseDto.getRefreshToken();
-        Cookie cookie = new Cookie("refreshToken", refreshToken);
-        cookie.setHttpOnly(true); // this is ensure my webbrower is store cookie
-        cookie.setPath("/");
-        response.addCookie(cookie);
+        response.addCookie(refreshCookie(loginResponseDto.getRefreshToken(), -1));
         return ResponseEntity.ok(loginResponseDto);
     }
 
 
+    // Public on purpose: clients call this once the access token has expired.
+    // The refresh token in the HttpOnly cookie is the credential.
     @PostMapping("/refresh")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LoginResponseDto> refreshToken(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = null;
+        String refreshToken = readRefreshToken(request);
+        if (refreshToken == null) {
+            throw new BadCredentialsException("Refresh token not found in cookies");
+        }
+        LoginResponseDto loginResponseDto = authService.refreshToken(refreshToken);
+        response.addCookie(refreshCookie(loginResponseDto.getRefreshToken(), -1));
+        return ResponseEntity.ok(loginResponseDto);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        authService.logout(readRefreshToken(request));
+        response.addCookie(refreshCookie("", 0));
+        return ResponseEntity.noContent().build();
+    }
+
+    private String readRefreshToken(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("refreshToken".equals(cookie.getName())) {
-                    refreshToken = cookie.getValue();
-                    break;
+                    return cookie.getValue();
                 }
             }
         }
-        if (refreshToken == null) {
-            throw new IllegalArgumentException("Refresh token not found in cookies");
-        }
-        LoginResponseDto loginResponseDto = authService.refreshToken(refreshToken);
-        String newRefreshToken = loginResponseDto.getRefreshToken();
-        Cookie cookie = new Cookie("refreshToken", newRefreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        response.addCookie(cookie);
-        return ResponseEntity.ok(loginResponseDto);
+        return null;
     }
 
+    private Cookie refreshCookie(String value, int maxAge) {
+        Cookie cookie = new Cookie("refreshToken", value);
+        cookie.setHttpOnly(true); // not readable from JavaScript
+        cookie.setPath("/");
+        cookie.setMaxAge(maxAge);
+        return cookie;
+    }
 
 }
